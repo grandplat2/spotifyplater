@@ -1,20 +1,28 @@
-name: Build and Deploy to Cloud Run
+name: Build and Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
-env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: spotify-player-share
-  REGION: us-central1
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queue.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Build & Deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -22,7 +30,6 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-size: '20'
           node-version: 20
           cache: 'npm'
 
@@ -34,29 +41,15 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Authenticate to GCP
-        if: env.PROJECT_ID != ''
-        uses: google-github-actions/auth@v2
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          # Upload Vite static output directory
+          path: './dist'
 
-      - name: Set up Cloud SDK
-        if: env.PROJECT_ID != ''
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and Push Docker Image
-        if: env.PROJECT_ID != ''
-        run: |
-          gcloud auth configure-docker
-          docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
-          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
-
-      - name: Deploy to Cloud Run
-        if: env.PROJECT_ID != ''
-        run: |
-          gcloud run deploy $SERVICE_NAME \
-            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
-            --region $REGION \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 3000
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
