@@ -1,0 +1,62 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: spotify-player-share
+  REGION: us-central1
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: '20'
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Authenticate to GCP
+        if: env.PROJECT_ID != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        if: env.PROJECT_ID != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and Push Docker Image
+        if: env.PROJECT_ID != ''
+        run: |
+          gcloud auth configure-docker
+          docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+
+      - name: Deploy to Cloud Run
+        if: env.PROJECT_ID != ''
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 3000

@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "SharedPlaylist": {
+      "title": "SharedPlaylist",
+      "description": "A playlist of tracks shared using a unique alphanumeric save code.",
+      "type": "object",
+      "properties": {
+        "saveCode": {
+          "type": "string",
+          "description": "The unique 6-character alphanumeric save code used to fetch the playlist across devices."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the shared playlist."
+        },
+        "description": {
+          "type": "string",
+          "description": "A short bio, details, or source description of the playlist."
+        },
+        "tracks": {
+          "type": "array",
+          "description": "The list of tracks compiled in this shared playlist."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the playlist was saved."
+        }
+      },
+      "required": ["saveCode", "name", "tracks", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/playlists/{saveCode}": {
+      "schema": "SharedPlaylist",
+      "description": "Stores shared music playlists by their unique save codes."
+    }
+  }
+}

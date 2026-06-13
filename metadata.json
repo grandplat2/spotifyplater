@@ -1,0 +1,6 @@
+{
+  "name": "Spotify Player & Share",
+  "description": "A fully-featured Spotify-like music player with playlist import, persistent database saving across devices via save codes, queue control, lyrics, and visual styling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

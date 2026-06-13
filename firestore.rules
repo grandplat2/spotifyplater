@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for validation
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() == 6 && id.matches('^[a-zA-Z0-9]+$');
+    }
+
+    function isValidTrack(track) {
+      return track is map &&
+        track.id is string && track.id.size() <= 128 &&
+        track.title is string && track.title.size() <= 200 &&
+        track.artist is string && track.artist.size() <= 200 &&
+        track.album is string && track.album.size() <= 200 &&
+        track.duration is int &&
+        track.coverUrl is string && track.coverUrl.size() <= 1000 &&
+        track.audioUrl is string && track.audioUrl.size() <= 1000;
+    }
+
+    function isValidPlaylist(data) {
+      return data.keys().hasAll(['saveCode', 'name', 'tracks', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             isValidId(data.saveCode) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.tracks is list && data.tracks.size() <= 100 &&
+             data.createdAt is string; // Validated as string representation
+    }
+
+    // Playlists endpoint
+    match /playlists/{saveCode} {
+      allow get: if isValidId(saveCode);
+      
+      // Allow creation of playlists by anyone (with strict shape verification to prevent abuse)
+      allow create: if isValidId(saveCode) && 
+                      isValidPlaylist(incoming()) && 
+                      incoming().saveCode == saveCode;
+
+      // Playlists are immutable once created (no remote updates or deletes allowed to keep save codes consistent)
+      allow update, delete: if false;
+    }
+  }
+}
